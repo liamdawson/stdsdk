@@ -64,6 +64,8 @@ func marshalValues(vv map[string]interface{}) (url.Values, error) {
 		switch t := v.(type) {
 		case bool:
 			u.Set(k, fmt.Sprintf("%t", t))
+		case int:
+			u.Set(k, fmt.Sprintf("%d", t))
 		case string:
 			u.Set(k, t)
 		case []string:
