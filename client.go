@@ -2,6 +2,7 @@ package stdsdk
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -177,6 +178,11 @@ func (c *Client) Websocket(path string, opts RequestOptions) (io.ReadCloser, err
 	cfg, err := websocket.NewConfig(u.String(), c.Endpoint.String())
 	if err != nil {
 		return nil, err
+	}
+
+	if c.Endpoint.User != nil {
+		pw, _ := c.Endpoint.User.Password()
+		cfg.Header.Add("Authorization", fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.Endpoint.User, pw)))))
 	}
 
 	cfg.TlsConfig = &tls.Config{
