@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/websocket"
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -174,27 +174,73 @@ func (c *Client) Websocket(path string, opts RequestOptions) (io.ReadCloser, err
 
 	u.Scheme = "wss"
 	u.Path += path
+	u.User = nil
 
-	cfg, err := websocket.NewConfig(u.String(), c.Endpoint.String())
-	if err != nil {
-		return nil, err
-	}
+	h := http.Header{}
 
 	if c.Endpoint.User != nil {
-		pw, _ := c.Endpoint.User.Password()
-		cfg.Header.Add("Authorization", fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.Endpoint.User, pw)))))
+		h.Add("Authorization", fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s", c.Endpoint.User)))))
 	}
 
-	cfg.TlsConfig = &tls.Config{
+	websocket.DefaultDialer.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: true,
 	}
 
-	ws, err := websocket.DialConfig(cfg)
+	ws, _, err := websocket.DefaultDialer.Dial(u.String(), h)
 	if err != nil {
 		return nil, err
 	}
 
-	return ws, nil
+	r, w := io.Pipe()
+
+	or, err := opts.Reader()
+	if err != nil {
+		return nil, err
+	}
+
+	go websocketIn(ws, or)
+	go websocketOut(w, ws)
+
+	return r, nil
+}
+
+func websocketIn(ws *websocket.Conn, r io.Reader) {
+	buf := make([]byte, 10*1024)
+
+	for {
+		n, err := r.Read(buf)
+		switch err {
+		case io.EOF:
+			return
+		case nil:
+			ws.WriteMessage(websocket.TextMessage, buf[0:n])
+		default:
+			ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
+			return
+		}
+	}
+}
+
+func websocketOut(w io.WriteCloser, ws *websocket.Conn) {
+	defer w.Close()
+
+	for {
+		code, data, err := ws.ReadMessage()
+		switch err {
+		case io.EOF:
+			return
+		case nil:
+			switch code {
+			case websocket.TextMessage:
+				w.Write(data)
+			}
+		default:
+			if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+				fmt.Fprintf(w, "ERROR: %s\n", err.Error())
+			}
+			return
+		}
+	}
 }
 
 func (c *Client) Request(method, path string, opts RequestOptions) (*http.Request, error) {
