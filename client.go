@@ -178,6 +178,10 @@ func (c *Client) Websocket(path string, opts RequestOptions) (io.ReadCloser, err
 
 	h := http.Header{}
 
+	for k, v := range opts.Headers {
+		h.Add(k, v)
+	}
+
 	if c.Endpoint.User != nil {
 		h.Add("Authorization", fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s", c.Endpoint.User)))))
 	}
@@ -211,7 +215,7 @@ func websocketIn(ws *websocket.Conn, r io.Reader) {
 		n, err := r.Read(buf)
 		switch err {
 		case io.EOF:
-			return
+			ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseGoingAway, ""))
 		case nil:
 			ws.WriteMessage(websocket.TextMessage, buf[0:n])
 		default:
@@ -235,7 +239,7 @@ func websocketOut(w io.WriteCloser, ws *websocket.Conn) {
 				w.Write(data)
 			}
 		default:
-			if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+			if !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				fmt.Fprintf(w, "ERROR: %s\n", err.Error())
 			}
 			return
@@ -343,8 +347,9 @@ func unmarshalReader(r io.ReadCloser, out interface{}) error {
 
 func MarshalOptions(opts interface{}) (RequestOptions, error) {
 	ro := RequestOptions{
-		Params: map[string]interface{}{},
-		Query:  map[string]interface{}{},
+		Headers: Headers{},
+		Params:  Params{},
+		Query:   Query{},
 	}
 
 	v := reflect.ValueOf(opts)
