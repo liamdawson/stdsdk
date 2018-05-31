@@ -358,6 +358,14 @@ func MarshalOptions(opts interface{}) (RequestOptions, error) {
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 
+		if n := f.Tag.Get("header"); n != "" {
+			if u := marshalValue(v.Field(i)); u != nil {
+				if uv, ok := u.(string); ok {
+					ro.Headers[n] = uv
+				}
+			}
+		}
+
 		if n := f.Tag.Get("param"); n != "" {
 			if u := marshalValue(v.Field(i)); u != nil {
 				ro.Params[n] = u
