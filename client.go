@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -359,19 +360,19 @@ func MarshalOptions(opts interface{}) (RequestOptions, error) {
 		f := t.Field(i)
 
 		if n := f.Tag.Get("header"); n != "" {
-			if u := marshalValue(v.Field(i)); u != nil {
-				ro.Headers[n] = fmt.Sprintf("%v", u)
+			if u, ok := marshalValue(v.Field(i)); ok {
+				ro.Headers[n] = u
 			}
 		}
 
 		if n := f.Tag.Get("param"); n != "" {
-			if u := marshalValue(v.Field(i)); u != nil {
+			if u, ok := marshalValue(v.Field(i)); ok {
 				ro.Params[n] = u
 			}
 		}
 
 		if n := f.Tag.Get("query"); n != "" {
-			if u := marshalValue(v.Field(i)); u != nil {
+			if u, ok := marshalValue(v.Field(i)); ok {
 				ro.Query[n] = u
 			}
 		}
@@ -380,14 +381,29 @@ func MarshalOptions(opts interface{}) (RequestOptions, error) {
 	return ro, nil
 }
 
-func marshalValue(f reflect.Value) interface{} {
+func marshalValue(f reflect.Value) (string, bool) {
 	if f.IsNil() {
-		return nil
+		return "", false
 	}
+
+	v := f.Interface()
 
 	if f.Kind() == reflect.Ptr {
-		return f.Elem().Interface()
+		v = f.Elem().Interface()
 	}
 
-	return f.Interface()
+	switch t := v.(type) {
+	case bool:
+		return fmt.Sprintf("%t", t), true
+	case int:
+		return strconv.Itoa(t), true
+	case string:
+		return t, true
+	case time.Duration:
+		return t.String(), true
+	default:
+		return "", false
+	}
+
+	return "", true
 }

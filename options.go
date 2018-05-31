@@ -72,8 +72,8 @@ func marshalValues(vv map[string]interface{}) (url.Values, error) {
 			for _, s := range t {
 				u.Add(k, s)
 			}
-		case time.Time:
-			u.Set(k, t.Format(sortableTime))
+		case time.Duration:
+			u.Set(k, t.String())
 		default:
 			return nil, fmt.Errorf("unknown param type: %T", t)
 		}
