@@ -360,9 +360,7 @@ func MarshalOptions(opts interface{}) (RequestOptions, error) {
 
 		if n := f.Tag.Get("header"); n != "" {
 			if u := marshalValue(v.Field(i)); u != nil {
-				if uv, ok := u.(string); ok {
-					ro.Headers[n] = uv
-				}
+				ro.Headers[n] = fmt.Sprintf("%v", u)
 			}
 		}
 
