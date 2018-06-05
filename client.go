@@ -10,8 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -344,66 +342,4 @@ func unmarshalReader(r io.ReadCloser, out interface{}) error {
 	}
 
 	return json.Unmarshal(data, out)
-}
-
-func MarshalOptions(opts interface{}) (RequestOptions, error) {
-	ro := RequestOptions{
-		Headers: Headers{},
-		Params:  Params{},
-		Query:   Query{},
-	}
-
-	v := reflect.ValueOf(opts)
-	t := v.Type()
-
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-
-		if n := f.Tag.Get("header"); n != "" {
-			if u, ok := marshalValue(v.Field(i)); ok {
-				ro.Headers[n] = u
-			}
-		}
-
-		if n := f.Tag.Get("param"); n != "" {
-			if u, ok := marshalValue(v.Field(i)); ok {
-				ro.Params[n] = u
-			}
-		}
-
-		if n := f.Tag.Get("query"); n != "" {
-			if u, ok := marshalValue(v.Field(i)); ok {
-				ro.Query[n] = u
-			}
-		}
-	}
-
-	return ro, nil
-}
-
-func marshalValue(f reflect.Value) (string, bool) {
-	if f.IsNil() {
-		return "", false
-	}
-
-	v := f.Interface()
-
-	if f.Kind() == reflect.Ptr {
-		v = f.Elem().Interface()
-	}
-
-	switch t := v.(type) {
-	case bool:
-		return fmt.Sprintf("%t", t), true
-	case int:
-		return strconv.Itoa(t), true
-	case string:
-		return t, true
-	case time.Duration:
-		return t.String(), true
-	default:
-		return "", false
-	}
-
-	return "", true
 }
