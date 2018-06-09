@@ -42,8 +42,8 @@ func (o *RequestOptions) Reader() (io.Reader, error) {
 		return nil, fmt.Errorf("cannot specify both Body and Params")
 	}
 
-	if o.Body == nil && len(o.Params) == 0 {
-		return bytes.NewReader(nil), nil
+	if o.Body == nil && len(o.Files) == 0 && len(o.Params) == 0 {
+		return nil, nil
 	}
 
 	if o.Body != nil {

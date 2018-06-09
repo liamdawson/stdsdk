@@ -206,6 +206,10 @@ func (c *Client) Websocket(path string, opts RequestOptions) (io.ReadCloser, err
 }
 
 func websocketIn(ws *websocket.Conn, r io.Reader) {
+	if r == nil {
+		return
+	}
+
 	buf := make([]byte, 10*1024)
 
 	for {
@@ -236,7 +240,7 @@ func websocketOut(w io.WriteCloser, ws *websocket.Conn) {
 				w.Write(data)
 			}
 		default:
-			if !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+			if !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				fmt.Fprintf(w, "ERROR: %s\n", err.Error())
 			}
 			return
