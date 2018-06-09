@@ -182,13 +182,9 @@ func (c *Client) Websocket(path string, opts RequestOptions) (io.ReadCloser, err
 		h.Set(k, v)
 	}
 
-	fmt.Printf("h = %+v\n", h)
-
 	websocket.DefaultDialer.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: true,
 	}
-
-	fmt.Printf("u.String() = %+v\n", u.String())
 
 	ws, _, err := websocket.DefaultDialer.Dial(u.String(), h)
 	if err != nil {
