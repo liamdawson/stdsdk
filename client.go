@@ -2,7 +2,6 @@ package stdsdk
 
 import (
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,10 +21,10 @@ const (
 
 type Client struct {
 	Endpoint *url.URL
-	Prepare  PrepareFunc
+	Headers  HeadersFunc
 }
 
-type PrepareFunc func(req *http.Request)
+type HeadersFunc func() http.Header
 
 var DefaultClient = &http.Client{
 	Transport: &http.Transport{
@@ -175,22 +174,25 @@ func (c *Client) Websocket(path string, opts RequestOptions) (io.ReadCloser, err
 	u.Path += path
 	u.User = nil
 
-	h := http.Header{}
+	h := c.Headers()
+
+	h.Set("Origin", fmt.Sprintf("https://%s", c.Endpoint.Host))
 
 	for k, v := range opts.Headers {
-		h.Add(k, v)
+		h.Set(k, v)
 	}
 
-	if c.Endpoint.User != nil {
-		h.Add("Authorization", fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s", c.Endpoint.User)))))
-	}
+	fmt.Printf("h = %+v\n", h)
 
 	websocket.DefaultDialer.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: true,
 	}
 
+	fmt.Printf("u.String() = %+v\n", u.String())
+
 	ws, _, err := websocket.DefaultDialer.Dial(u.String(), h)
 	if err != nil {
+		fmt.Printf("err = %+v\n", err)
 		return nil, err
 	}
 
@@ -267,17 +269,14 @@ func (c *Client) Request(method, path string, opts RequestOptions) (*http.Reques
 	req.Header.Add("Accept", "*/*")
 	req.Header.Set("Content-Type", opts.ContentType())
 
+	h := c.Headers()
+
+	for k := range h {
+		req.Header.Set(k, h.Get(k))
+	}
+
 	for k, v := range opts.Headers {
 		req.Header.Set(k, v)
-	}
-
-	if c.Endpoint.User != nil {
-		pw, _ := c.Endpoint.User.Password()
-		req.SetBasicAuth(c.Endpoint.User.Username(), pw)
-	}
-
-	if c.Prepare != nil {
-		c.Prepare(req)
 	}
 
 	return req, nil

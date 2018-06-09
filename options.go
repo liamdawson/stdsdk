@@ -4,18 +4,21 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/url"
 	"reflect"
 	"strconv"
 	"time"
 )
 
+type Files map[string][]byte
 type Headers map[string]string
 type Params map[string]interface{}
 type Query map[string]interface{}
 
 type RequestOptions struct {
 	Body    io.Reader
+	Files   Files
 	Headers Headers
 	Params  Params
 	Query   Query
@@ -31,6 +34,10 @@ func (o *RequestOptions) Querystring() (string, error) {
 }
 
 func (o *RequestOptions) Reader() (io.Reader, error) {
+	if o.Body != nil && len(o.Files) > 0 {
+		return nil, fmt.Errorf("cannot specify both Body and Files")
+	}
+
 	if o.Body != nil && len(o.Params) > 0 {
 		return nil, fmt.Errorf("cannot specify both Body and Params")
 	}
@@ -43,12 +50,35 @@ func (o *RequestOptions) Reader() (io.Reader, error) {
 		return o.Body, nil
 	}
 
-	u, err := marshalValues(o.Params)
+	uv, err := marshalValues(o.Params)
 	if err != nil {
 		return nil, err
 	}
 
-	return bytes.NewReader([]byte(u.Encode())), nil
+	if len(o.Files) > 0 {
+		var buf bytes.Buffer
+
+		w := multipart.NewWriter(&buf)
+
+		for name, data := range o.Files {
+			part, err := w.CreateFormFile(name, "binary-data")
+			if err != nil {
+				return nil, err
+			}
+
+			if _, err := part.Write(data); err != nil {
+				return nil, err
+			}
+		}
+
+		for k := range uv {
+			w.WriteField(k, uv.Get(k))
+		}
+
+		return &buf, nil
+	}
+
+	return bytes.NewReader([]byte(uv.Encode())), nil
 }
 
 func (o *RequestOptions) ContentType() string {
