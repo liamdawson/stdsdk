@@ -75,6 +75,10 @@ func (o *RequestOptions) Content() (io.Reader, string, error) {
 			w.WriteField(k, uv.Get(k))
 		}
 
+		if err := w.Close(); err != nil {
+			return nil, "", err
+		}
+
 		return &buf, w.FormDataContentType(), nil
 	}
 
