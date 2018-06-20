@@ -33,26 +33,26 @@ func (o *RequestOptions) Querystring() (string, error) {
 	return u.Encode(), nil
 }
 
-func (o *RequestOptions) Reader() (io.Reader, error) {
+func (o *RequestOptions) Content() (io.Reader, string, error) {
 	if o.Body != nil && len(o.Files) > 0 {
-		return nil, fmt.Errorf("cannot specify both Body and Files")
+		return nil, "", fmt.Errorf("cannot specify both Body and Files")
 	}
 
 	if o.Body != nil && len(o.Params) > 0 {
-		return nil, fmt.Errorf("cannot specify both Body and Params")
+		return nil, "", fmt.Errorf("cannot specify both Body and Params")
 	}
 
 	if o.Body == nil && len(o.Files) == 0 && len(o.Params) == 0 {
-		return nil, nil
+		return nil, "application/octet-stream", nil
 	}
 
 	if o.Body != nil {
-		return o.Body, nil
+		return o.Body, "application/octet-stream", nil
 	}
 
 	uv, err := marshalValues(o.Params)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if len(o.Files) > 0 {
@@ -63,11 +63,11 @@ func (o *RequestOptions) Reader() (io.Reader, error) {
 		for name, data := range o.Files {
 			part, err := w.CreateFormFile(name, "binary-data")
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 
 			if _, err := part.Write(data); err != nil {
-				return nil, err
+				return nil, "", err
 			}
 		}
 
@@ -75,18 +75,10 @@ func (o *RequestOptions) Reader() (io.Reader, error) {
 			w.WriteField(k, uv.Get(k))
 		}
 
-		return &buf, nil
+		return &buf, w.FormDataContentType(), nil
 	}
 
-	return bytes.NewReader([]byte(uv.Encode())), nil
-}
-
-func (o *RequestOptions) ContentType() string {
-	if o.Body == nil {
-		return "application/x-www-form-urlencoded"
-	}
-
-	return "application/octet-stream"
+	return bytes.NewReader([]byte(uv.Encode())), "application/x-www-form-urlencoded", nil
 }
 
 func MarshalOptions(opts interface{}) (RequestOptions, error) {

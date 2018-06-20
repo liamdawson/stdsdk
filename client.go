@@ -194,10 +194,12 @@ func (c *Client) Websocket(path string, opts RequestOptions) (io.ReadCloser, err
 
 	r, w := io.Pipe()
 
-	or, err := opts.Reader()
+	or, ct, err := opts.Content()
 	if err != nil {
 		return nil, err
 	}
+
+	h.Set("Content-Type", ct)
 
 	go websocketIn(ws, or)
 	go websocketOut(w, ws)
@@ -254,7 +256,7 @@ func (c *Client) Request(method, path string, opts RequestOptions) (*http.Reques
 		return nil, err
 	}
 
-	r, err := opts.Reader()
+	r, ct, err := opts.Content()
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +269,7 @@ func (c *Client) Request(method, path string, opts RequestOptions) (*http.Reques
 	}
 
 	req.Header.Add("Accept", "*/*")
-	req.Header.Set("Content-Type", opts.ContentType())
+	req.Header.Set("Content-Type", ct)
 
 	h := c.Headers()
 
