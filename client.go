@@ -34,6 +34,7 @@ type HeadersFunc func() http.Header
 
 var DefaultClient = &http.Client{
 	Transport: &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
 			KeepAlive: 10 * time.Second,
